@@ -11,7 +11,7 @@ I sampled 250,000 npm packages at random and looked at the dependency versions e
 - **A simple fingerprint went from background noise to one new package in seven.** Packages whose pinned versions are mostly round numbers (`x.0.0`) that were already out of date made up between 1% and 2.4% of new packages in every half-year from 2019 to early 2024. In the first half of 2026 they made up 13.7% (95% CI 13.1–14.4). "New packages" here means first releases with at least three datable pins.
 - **New packages are born much staler than they used to be.** The typical pinned dependency was about 155 days old on the day a package was born in 2021–2023. In the second quarter of 2026 it was 451 days old.
 - **Few packages are born up to date any more.** About 28% of new packages had essentially all their pins on the newest release in 2021–2023. In 2026 it is about 10%.
-- **The fingerprint is fading.** Its share fell to 7.6% in the second half of 2026, while staleness fell only a little.
+- **The fingerprint is fading.** Its share so far in the second half of 2026 (July to early November) is 7.6%, while staleness has fallen only a little.
 
 The data cannot prove who or what wrote any single package. The timing, the specific versions involved, and the way package managers work all point to manifests written from a language model's memory rather than by running an install.
 
@@ -100,11 +100,21 @@ Scaling the sample up, about 374,000 packages were created in 2023, 455,000 in 2
 - **Not one publisher.** The 3,038 fingerprint packages born in 2025–2026 were first published by 2,714 different accounts. The largest account is responsible for 0.4% of them.
 - **Sampling error.** Half-year groups contain 3,900 to 13,500 packages. Confidence intervals are in `results/half_year.csv`.
 
+### Alternative explanations
+
+Three other things could produce round, stale pins at scale. The 2026 H1 figure (13.7%) barely moves under any of them. Every half-year is in `results/robustness.csv`.
+
+- **Scaffolding tools.** `create-next-app` writes `react ^19.0.0`, so scaffolded apps could inflate the count. Dropping every package that depends on `next` or `react-dom` gives 13.4%. Ignoring all pins to `react`, `react-dom` and their type packages gives 12.8%.
+- **A few popular templates.** Templates produce identical manifests. Among the 1,664 fingerprint packages born in 2026 H1, 87% have a manifest that no other sampled package shares, the same rate as all packages born in 2022 (86%). They contain 1,157 different combinations of round pins, and the ten most common combinations cover 13% of them. Dropping packages whose name or description says template, starter, boilerplate, scaffold, example or demo gives 13.8%.
+- **Monorepos.** One repository can publish dozens of packages with the same manifest. Counting one package per npm scope gives 13.9%. Unscoped packages alone give 13.3% and scoped packages alone 14.0%.
+
+Projects copied from an old repository cannot be ruled out package by package. Copying has always happened, though, and it is part of the 1–2.4% baseline. It would explain the jump only if what people copy had changed in 2025.
+
 ## Limits
 
 - **Inference, not proof.** Nothing in registry metadata says who wrote a manifest. A person copying an old tutorial produces the same pattern. The claim rests on a baseline that was flat for six years and rose roughly eightfold in eighteen months.
 - **An undercount of code written from memory, in an unknown amount.** Stale but non-round versions are not counted.
-- **The decline in late 2026 is unexplained.** It would fit coding agents resolving versions from the registry instead of reciting them. I did not test that.
+- **The decline since mid-2026 is unexplained.** It would fit coding agents resolving versions from the registry instead of reciting them. I did not test that.
 - **npm only, first release only.** Other ecosystems and later releases may look different.
 - **Coverage.** Pins to dependencies outside the 4,000 most-used names are not dated. Removed packages (1.6% of sampled names) are missing, and removal is not random.
 - **One snapshot.** The sample was taken on one day. Packages published after the name list was built are absent, so the last quarter is thin.
@@ -146,7 +156,7 @@ python src/charts.py
 | `src/fetch_deps.py` | Fetches release timelines for dependencies |
 | `src/analyze.py` | Computes every number in this document |
 | `src/charts.py` | Draws the figures |
-| `results/` | CSV output: half-year, quarterly, per-library, stack, volume, top round pins |
+| `results/` | CSV output: half-year, quarterly, robustness, per-library, stack, volume, top round pins |
 | `data/` | Sampled names, dependency timelines, list of dependencies fetched |
 
 ## Notes

@@ -71,7 +71,7 @@ for line in open(SAMPLE):
             pins.append({'dep': dep, 'v': v, 'kind': kind, 'age': (T - t) / DAY, 'sup': superseded,
                          'round': b == 0 and c == 0, 't': t})
     if len(pins) >= 3:
-        pk.append({'name': r['name'], 'T': T, 'pins': pins, 'nv': r['nv'], 'repo': bool(r['repo'])})
+        pk.append({'name': r['name'], 'T': T, 'pins': pins, 'nv': r['nv'], 'repo': bool(r['repo']), 'desc': r.get('desc') or ''})
 
 def fingerprint(pins, kinds='dvp', k=2, frac=0.4):
     """>=k pins of the form x.0.0 that had already been superseded for >=30 days, making up >=frac of the pins."""
@@ -162,6 +162,34 @@ for p in F26:
 with open(f'{OUT}/top_round_pins_2026.csv', 'w', newline='') as f:
     w = csv.writer(f); w.writerow(['dependency', 'version', 'released', 'count_in_fingerprint_packages_2026'])
     for (d, v, m), n in c.most_common(40): w.writerow([d, v, m, n])
+
+# ---- alternative explanations: scaffolds, monorepos, templates -----------------------------
+REACT = {'react', 'react-dom', '@types/react', '@types/react-dom'}
+TEMPLATE = re.compile(r'template|starter|boilerplate|scaffold|example|demo', re.I)
+def scope(name): return name.split('/')[0] if name.startswith('@') else name
+G = collections.defaultdict(list)
+for p in pk: G[half(p['T'])].append(p)
+with open(f'{OUT}/robustness.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['period', 'n', 'fingerprint_pct', 'excluding_packages_that_depend_on_next_or_react_dom', 'ignoring_react_family_pins',
+                'unscoped_packages_only', 'scoped_packages_only', 'one_package_per_scope', 'excluding_template_like_names'])
+    for h in sorted(G):
+        if h < '2019H1': continue
+        L = G[h]; pct = lambda xs: round(100 * float(np.mean([x for x in xs if x is not None])), 2)
+        seen, one = set(), []
+        for p in L:
+            if scope(p['name']) not in seen: seen.add(scope(p['name'])); one.append(p['F'])
+        w.writerow([h, len(L), pct([p['F'] for p in L]),
+                    pct([p['F'] for p in L if not any(x['dep'] in ('next', 'react-dom') for x in p['pins'])]),
+                    pct([fingerprint([x for x in p['pins'] if x['dep'] not in REACT]) for p in L]),
+                    pct([p['F'] for p in L if not p['name'].startswith('@')]), pct([p['F'] for p in L if p['name'].startswith('@')]),
+                    pct(one), pct([p['F'] for p in L if not TEMPLATE.search(p['name'] + ' ' + p['desc'])])])
+F1 = [p for p in G['2026H1'] if p['F']]
+full = collections.Counter(tuple(sorted((x['dep'], x['v']) for x in p['pins'])) for p in F1)
+combo = collections.Counter(tuple(sorted((x['dep'], x['v']) for x in p['pins'] if x['round'] and x['sup'] >= 30)) for p in F1)
+uniq = sum(1 for p in F1 if full[tuple(sorted((x['dep'], x['v']) for x in p['pins']))] == 1) / len(F1)
+print(f"2026H1 fingerprint packages: {len(F1)}; with a manifest no other sampled package shares: {100*uniq:.1f}%; "
+      f"distinct round-pin combinations: {len(combo)}; ten most common combinations cover {100*sum(v for _, v in combo.most_common(10))/len(F1):.1f}%")
 
 # ---- summary ---------------------------------------------------------------------------
 print(f"sampled packages with a first version: {len(everyone)}; with >=3 datable pins (2016+): {len(pk)}")
